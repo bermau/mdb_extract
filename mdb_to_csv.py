@@ -9,48 +9,64 @@
 # code trouvé sur : http://mazamascience.com/WorkingWithData/?p=168
 
 # ajout : classe 
-import sys, subprocess
+import sys, os, subprocess
 from subprocess import PIPE
 import config_file as Cf
 
 
-try : 
-    DATABASE = sys.argv[1]
-except:
-    DATABASE =  Cf.INPUT+"base_de_bioch.accdb" # pour les tests
+debug = True
 
 class Translator_mdb2():
     """Tools to translate form mdb to sqlite"""
-
-    def init(self):
-        pass   
-
-    def extract_data(self):          
-        debug = True
+    
+    def __init__(self, DATABASE):
+        self.DB_name = DATABASE
+        
+    def extract_table_names(self):
         # Get the list of table names with "mdb-tables"
-        table_names = subprocess.Popen(["mdb-tables", "-1", DATABASE], 
+        print("DB name :",self.DB_name)
+        table_names = subprocess.Popen(["mdb-tables", "-1", self.DB_name], 
                                        stdout=PIPE, stdin=PIPE, stderr=PIPE,
                                        universal_newlines=True).communicate()[0]
+        print(table_names)
         if debug: print("tables" , table_names)
         #  tables = table_names.split('\n')
-        tables = table_names.splitlines()
+        self.tables = table_names.splitlines()
         if debug:
             print("Table names :");
-            print(tables)
+            print(self.tables)
+    def extract_structure(self):
+        pass
+    def extract_data_as_csv(self): 
         # Dump each table as a CSV file using "mdb-export",
         # converting " " in table names to "_" for the CSV filenames.
-        for table in tables:
+        for table in self.tables:
             if table != '':
                 if debug:print("Extracting table : " + table)
-                filename = Cf.OUTPUT+table.replace(" ","_") + ".csv"
+                filename = os.path.join(Cf.OUTPUT, table.replace(" ","_") + ".csv")
                 with open(filename, 'w') as file:                    
-                    contents = subprocess.Popen(["mdb-export", DATABASE, table],
+                    contents = subprocess.Popen(["mdb-export", self.DB_name, table],
                                                 stdout=PIPE, stdin=PIPE,
                                                 stderr=PIPE, universal_newlines=True                               
                                                 ).communicate()[0]
-                    file.write(contents)
-                    print("Data written in ", filename)
-                    
+                    # Autres options : 
+                    #
+                    if debug> 1:
+                        print(contents)
+                    else:
+                        file.write(contents)
+                        print("Data written in ", filename)
+
+    
 if __name__ == '__main__':
-    T = Translator_mdb2()
-    T.extract_data()
+    try : 
+        DATABASE = sys.argv[1]
+    except:
+        DATABASE =  os.path.join(Cf.INPUT, "base_de_bioch.accdb") # pour les tests
+
+    if not os.path.isfile(DATABASE):
+        print("Fichier inexistant")
+        
+    T = Translator_mdb2(DATABASE)
+    T.extract_table_names()
+    T.extract_data_as_csv()
